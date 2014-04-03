@@ -127,29 +127,3 @@ class Auth(object):
         self.token_type = data['token_type']
         self.refresh_token = data['refresh_token']
         self.expires_at = dt.datetime.now() + dt.timedelta(seconds=data['expires_in'])
-
-
-
-def authenticate():
-    token = load_token()
-    if 'access_token' not in token:
-        data = get_user_code()
-        webbrowser.open(data['verification_url'])
-        print('Verification code: %s' % data['user_code'])
-
-        data = get_token(data['device_code'], data['interval'])
-
-        token = save_token(token['access_token'], token['refresh_token'],
-            dt.datetime.now() + dt.timedelta(seconds=token['expires_in']))
-
-        print('Access token: %s' % token['access_token'])
-        print('Refresh token: %s' % token['refresh_token'])
-
-    elif token['expires_at'] <= dt.datetime.now():
-        print('Token needs refresh')
-        token = refresh_token()
-        token = save_token(token['access_token'], token['refresh_token'],
-            dt.datetime.now() + dt.timedelta(seconds=token['expires_in']))
-
-    else:
-        print('Valid token found')
