@@ -37,40 +37,6 @@ class Auth(object):
         self.refresh_token = refresh_token
         self.expires_at = expires_at
 
-    @classmethod
-    def store_creds(cls, path, client_id, client_secret):
-        data = shelve.open(path)
-        data.clear()
-        data.update({'client_id': client_id, 'client_secret': client_secret})
-        data.close()
-
-    @classmethod
-    def load(cls, path):
-        data = shelve.open(path)
-        if 'client_id' not in data or 'client_secret' not in data:
-            raise RuntimeError('Client ID or Secret is not set in data file')
-        obj = cls(**data)
-        data.close()
-        return obj
-
-    @classmethod
-    def clear(cls, path):
-        data = shelve.open(path)
-        data.clear()
-        data.close()
-
-    def save(self, path):
-        data = shelve.open(path)
-        data.update({
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'access_token': self.access_token,
-            'token_type': self.token_type,
-            'refresh_token': self.refresh_token,
-            'expires_at': self.expires_at
-        })
-        data.close()
-
     def is_authenticated(self):
         if self.client_id and self.client_secret and self.access_token:
             return True
@@ -126,3 +92,37 @@ class Auth(object):
         self.access_token = data['access_token']
         self.token_type = data['token_type']
         self.expires_at = dt.datetime.now() + dt.timedelta(seconds=data['expires_in'])
+
+
+class AuthShelve(Auth):
+
+    def __init__(self, path):
+        self.datafile_path = path
+        data = shelve.open(self.datafile_path)
+        super(AuthShelve, self).__init__(data.get('client_id'), data.get('client_secret'),
+            data.get('access_token'), data.get('token_type'), data.get('refresh_token'), data.get('expires_at'))
+        data.close()
+
+    def set_credentials(self, client_id, client_secret):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.access_token = None
+        self.token_type = None
+        self.refresh_token = None
+        self.expires_at = None
+
+    def clear(self):
+        self.set_credentials(None, None)
+
+    def save(self):
+        data = shelve.open(self.datafile_path)
+        data.update({
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'access_token': self.access_token,
+            'token_type': self.token_type,
+            'refresh_token': self.refresh_token,
+            'expires_at': self.expires_at
+        })
+        data.close()
+
