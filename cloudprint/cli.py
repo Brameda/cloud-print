@@ -15,13 +15,17 @@ auth_subparsers = auth_parser.add_subparsers()
 AUTH_DATA = os.path.expanduser('~/.cloudprint')
 
 
-def auth_login(*args, **kwargs):
+def auth_login(args):
     try:
         authobj = auth.Auth.load(AUTH_DATA)
     except RuntimeError:
-        print('Set sredentials first')
+        print('Set credentials first')
+        return
+
     if authobj.is_authenticated():
         print('Already authenticated')
+        return
+
     code = authobj.get_code()
     webbrowser.open(code.verification_url)
 
@@ -38,9 +42,29 @@ def auth_login(*args, **kwargs):
             authobj.save(AUTH_DATA)
             break
 
-
 auth_login_parser = auth_subparsers.add_parser('login')
 auth_login_parser.set_defaults(call=auth_login)
+
+
+def auth_refresh(args):
+    try:
+        authobj = auth.Auth.load(AUTH_DATA)
+    except RuntimeError:
+        print('Set credentials first')
+        return
+
+    if not authobj.is_authenticated():
+        print('Not authenticated')
+        return
+    elif not authobj.is_expired():
+        print('Token is not expired')
+        return
+
+    authobj.refresh()
+    authobj.save(AUTH_DATA)
+
+auth_refresh_parser = auth_subparsers.add_parser('refresh')
+auth_refresh_parser.set_defaults(call=auth_refresh)
 
 
 def auth_clear(args):
@@ -70,8 +94,7 @@ def auth_status(args):
         print('Client Secret: %s' % authobj.client_secret)
 
         if authobj.is_authenticated():
-            print('Access token:  %s' % authobj.access_token)
-            print('Expires at:    %s' % authobj.expires_at.strftime('%Y-%m-%d %H:%M'))
+            print('Access token:  %s (%s)' % (authobj.access_token, ('expired' if authobj.is_expired() else 'valid')))
             print('Refresh token: %s' % authobj.refresh_token)
         else:
             print('Not authenticated')

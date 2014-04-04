@@ -72,7 +72,7 @@ class Auth(object):
         data.close()
 
     def is_authenticated(self):
-        if self.client_id and self.client_secret and self.access_token and not self.is_expired():
+        if self.client_id and self.client_secret and self.access_token:
             return True
         return False
 
@@ -110,14 +110,14 @@ class Auth(object):
         self.refresh_token = data['refresh_token']
         self.expires_at = dt.datetime.now() + dt.timedelta(seconds=data['expires_in'])
 
-    def refresh_token(self):
+    def refresh(self):
         data = {
-            'refresh_token': token['refresh_token'],
-            'client_id': CLIENT_ID,
-            'client_secret': CLIENT_SECRET,
-            'grant_type': GRANT_REFRESH,
+            'refresh_token': self.refresh_token,
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'grant_type': self.GRANT_REFRESH,
         }
-        resp = requests.post(TOKEN_URI, data)
+        resp = requests.post(self.TOKEN_URI, data)
 
         data = resp.json()
         if 'error' in data:
@@ -125,5 +125,4 @@ class Auth(object):
 
         self.access_token = data['access_token']
         self.token_type = data['token_type']
-        self.refresh_token = data['refresh_token']
         self.expires_at = dt.datetime.now() + dt.timedelta(seconds=data['expires_in'])
