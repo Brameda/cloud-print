@@ -1,9 +1,6 @@
 import datetime as dt
-import logging
-import os
 import requests
 import shelve
-import time
 
 from collections import namedtuple
 
@@ -125,4 +122,3 @@ class AuthShelve(Auth):
             'expires_at': self.expires_at
         })
         data.close()
-
