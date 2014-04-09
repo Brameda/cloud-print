@@ -1,7 +1,6 @@
 import datetime as dt
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from nose.tools import assert_raises
-
 from cloudprint import auth
 
 

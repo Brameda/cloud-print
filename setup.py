@@ -15,7 +15,6 @@ setup(
     tests_require=[
         'nose>=1.3',
         'coverage',
-        'mock-server',
     ],
     entry_points={
         'console_scripts': [
