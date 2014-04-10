@@ -3,11 +3,16 @@ import time
 import webbrowser
 
 from argparse import ArgumentParser
+from functools import wraps
 
-from . import auth
+from . import auth, api
 
 parser = ArgumentParser()
 subparsers = parser.add_subparsers()
+
+
+class Error(RuntimeError): pass
+
 
 auth_parser = subparsers.add_parser('auth', help='authentication')
 auth_subparsers = auth_parser.add_subparsers()
@@ -19,11 +24,9 @@ def auth_login(args):
     authobj = auth.AuthShelve(AUTH_DATA)
 
     if authobj.is_authenticated():
-        print('Already authenticated')
-        return
+        raise Error('Already authenticated')
     elif not authobj.client_id or not authobj.client_secret:
-        print('Set credentials first')
-        return
+        raise Error('Set credentials first')
 
     code = authobj.get_code()
     webbrowser.open(code.verification_url)
@@ -49,11 +52,9 @@ def auth_refresh(args):
     authobj = auth.AuthShelve(AUTH_DATA)
 
     if not authobj.is_authenticated():
-        print('Not authenticated')
-        return
+        raise Error('Not authenticated')
     elif not authobj.is_expired() and not args.force:
-        print('Token is not expired')
-        return
+        raise Error('Token is not expired')
 
     authobj.refresh()
     authobj.save()
@@ -98,7 +99,7 @@ def auth_status(args):
             print('Access token:  %s (%s)' % (authobj.access_token, ('expired' if authobj.is_expired() else 'valid')))
             print('Refresh token: %s' % authobj.refresh_token)
         else:
-            print('Not authenticated')
+            raise Error('Not authenticated')
 
     else:
         print('Please set client id/secret')
@@ -108,9 +109,47 @@ auth_status_parser = auth_subparsers.add_parser('status')
 auth_status_parser.set_defaults(call=auth_status)
 
 
+def apicall(func):
+    @wraps(func)
+    def wrapper(args):
+        authobj = auth.AuthShelve(AUTH_DATA)
+        if not authobj.is_authenticated():
+            raise Error('Not authenticated')
+        return func(args, api.Client(authobj))
+    return wrapper
+
+
+@apicall
+def printers_list(args, client):
+    printers = client.list_printers()
+    for ii in range(len(printers)):
+        print('%d %s %s' % (ii, printers[ii].name, printers[ii].status))
+
+printers_parser = subparsers.add_parser('printers', help='list printers')
+printers_parser.set_defaults(call=printers_list)
+
+
+@apicall
+def submit_job(args, client):
+    printer = client.get_printer(args.printer_id)
+    try:
+        printer.submit_job(args.filename)
+    except FileNotFoundError:
+        raise Error('File not found')
+
+submit_parser = subparsers.add_parser('submit', help='submit job to printer')
+submit_parser.add_argument('printer_id')
+submit_parser.add_argument('filename')
+submit_parser.set_defaults(call=submit_job)
+
+
 def main():
     args = parser.parse_args()
-    args.call(args)
+
+    try:
+        args.call(args)
+    except RuntimeError as exc:
+        print(exc)
 
 if __name__ == '__main__':
     main()
